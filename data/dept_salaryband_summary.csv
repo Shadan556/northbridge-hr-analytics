@@ -1,0 +1,58 @@
+Department,SalaryBand,HeadCount
+Administration,120K+,346
+Administration,50-70K,681
+Administration,70-90K,125
+Administration,90-120K,84
+Administration,<50K,79
+Emergency,120K+,314
+Emergency,50-70K,345
+Emergency,70-90K,343
+Emergency,90-120K,119
+Emergency,<50K,29
+Facilities,120K+,344
+Facilities,50-70K,613
+Facilities,70-90K,120
+Facilities,90-120K,73
+Facilities,<50K,59
+Finance,120K+,1
+Finance,50-70K,280
+Finance,70-90K,459
+Finance,90-120K,403
+Finance,<50K,31
+Human Resources,120K+,259
+Human Resources,50-70K,762
+Human Resources,70-90K,116
+Human Resources,90-120K,46
+Human Resources,<50K,76
+It,120K+,1
+It,50-70K,296
+It,70-90K,572
+It,90-120K,317
+It,<50K,27
+Lab Services,120K+,352
+Lab Services,50-70K,648
+Lab Services,70-90K,93
+Lab Services,90-120K,92
+Lab Services,<50K,59
+Nursing,50-70K,98
+Nursing,70-90K,782
+Nursing,90-120K,346
+Patient Support,120K+,342
+Patient Support,50-70K,314
+Patient Support,70-90K,260
+Patient Support,90-120K,285
+Patient Support,<50K,34
+Pharmacy,120K+,6
+Pharmacy,50-70K,476
+Pharmacy,70-90K,384
+Pharmacy,90-120K,322
+Pharmacy,<50K,57
+Radiology,120K+,384
+Radiology,50-70K,81
+Radiology,70-90K,550
+Radiology,90-120K,313
+Surgery,120K+,666
+Surgery,50-70K,318
+Surgery,70-90K,65
+Surgery,90-120K,138
+Surgery,<50K,39
