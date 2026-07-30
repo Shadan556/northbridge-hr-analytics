@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Northbridge Health Group — HR Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy: #0f1f3d;
+    --navy-light: #1a3260;
+    --teal: #0d9488;
+    --teal-light: #14b8a6;
+    --teal-pale: #e0f7f5;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --red-pale: #fef2f2;
+    --slate: #64748b;
+    --slate-light: #94a3b8;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: var(--teal);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: white;
+  }
+  .header-title { color: white; }
+  .header-title h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title p { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .header-badge {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.8);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    background: var(--navy);
+    padding: 0 32px;
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .tab {
+    padding: 12px 20px;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: rgba(255,255,255,0.8); }
+  .tab.active { color: var(--teal-light); border-bottom-color: var(--teal-light); }
+
+  /* ── LAYOUT ── */
+  .content { display: flex; gap: 0; }
+  .dashboard-area { flex: 1; padding: 24px 28px; overflow-y: auto; }
+  .steps-panel {
+    width: 320px;
+    min-width: 320px;
+    background: white;
+    border-left: 1px solid var(--border);
+    height: calc(100vh - 112px);
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── KPI CARDS ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--teal);
+  }
+  .kpi-card.danger::before { background: var(--red); }
+  .kpi-card.amber::before { background: var(--amber); }
+  .kpi-label { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: var(--text); margin: 6px 0 4px; line-height: 1; letter-spacing: -1px; }
+  .kpi-value.red { color: var(--red); }
+  .kpi-value.teal { color: var(--teal); }
+  .kpi-sub { font-size: 11px; color: var(--text-muted); }
+  .kpi-icon { position: absolute; top: 16px; right: 14px; font-size: 22px; opacity: 0.12; }
+
+  /* ── CHARTS GRID ── */
+  .charts-row { display: grid; gap: 16px; margin-bottom: 16px; }
+  .charts-row.col2 { grid-template-columns: 1fr 1fr; }
+  .charts-row.col3 { grid-template-columns: 2fr 1fr 1fr; }
+  .charts-row.col12 { grid-template-columns: 1.4fr 1fr; }
+
+  .chart-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .chart-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .chart-wrap { position: relative; }
+
+  /* ── HEATMAP ── */
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: 24px repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr) 24px;
+    gap: 3px;
+    margin-top: 8px;
+  }
+  .hm-cell {
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    height: 42px;
+    transition: transform 0.15s;
+    cursor: default;
+    position: relative;
+  }
+  .hm-cell:hover { transform: scale(1.08); z-index: 10; }
+  .hm-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* ── OVERTIME BAR ── */
+  .overtime-bars { margin-top: 8px; }
+  .ot-row { margin-bottom: 14px; }
+  .ot-label-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .ot-label { font-size: 12px; font-weight: 500; }
+  .ot-pct { font-size: 12px; font-weight: 700; }
+  .ot-bar-bg { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+  .ot-bar-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
+
+  /* ── STAT ROWS ── */
+  .stat-row {
+    display: flex;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-dept { font-size: 12px; font-weight: 500; flex: 1; }
+  .stat-bar-wrap { flex: 2; }
+  .stat-bar-bg { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .stat-bar-fill { height: 100%; border-radius: 4px; background: var(--teal); }
+  .stat-val { font-size: 12px; font-weight: 700; width: 40px; text-align: right; font-family: var(--mono); }
+
+  /* ── STEPS PANEL ── */
+  .steps-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+  }
+  .steps-header h3 { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .steps-header p { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  .step-group { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .step-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--teal);
+    margin-bottom: 10px;
+  }
+  .step-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .step-text { font-size: 11.5px; line-height: 1.6; color: var(--text); }
+  .step-text b { color: var(--navy); }
+  .step-code {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.6;
+    color: #334155;
+    margin-top: 6px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .step-tip {
+    background: #fffbeb;
+    border-left: 3px solid var(--amber);
+    padding: 7px 10px;
+    font-size: 10.5px;
+    color: #78350f;
+    border-radius: 0 6px 6px 0;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* ── FINDINGS TAGS ── */
+  .finding-tag {
+    display: inline-block;
+    background: var(--teal-pale);
+    color: var(--teal);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .finding-tag.red { background: var(--red-pale); color: var(--red); }
+
+  /* ── INSIGHT BOX ── */
+  .insight {
+    background: linear-gradient(135deg, #f0fdf9 0%, #e0f7f5 100%);
+    border: 1px solid #99f6e4;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #134e4a;
+  }
+  .insight strong { color: #0f766e; }
+
+  /* ── MINI TABLE ── */
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 8px; }
+  .mini-table th { background: var(--navy); color: white; padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; }
+  .mini-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .mini-table tr:nth-child(even) td { background: #f8fafc; }
+  .mini-table .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .pill-red { background: var(--red-pale); color: var(--red); }
+  .pill-teal { background: var(--teal-pale); color: var(--teal); }
+
+  /* ── DONUT LEGEND ── */
+  .donut-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">N</div>
+    <div class="header-title">
+      <h1>Northbridge Health Group</h1>
+      <p>HR Attrition & Workforce Analytics Dashboard</p>
+    </div>
+  </div>
+  <div class="header-badge">📊 Portfolio Project — Synthetic Data</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">📋 Executive Overview</div>
+  <div class="tab" onclick="switchTab(1)">💰 Compensation</div>
+  <div class="tab" onclick="switchTab(2)">🎯 Attrition Drivers</div>
+  <div class="tab" onclick="switchTab(3)">👥 Workforce</div>
+</div>
+
+<div class="content">
+  <div class="dashboard-area">
+
+    <!-- ══════════════ PAGE 1: EXECUTIVE OVERVIEW ══════════════ -->
+    <div class="page active" id="page0">
+
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-label">Total Employees</div>
+          <div class="kpi-value teal">14,823</div>
+          <div class="kpi-sub">Active + Departed</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="kpi-icon">📉</div>
+          <div class="kpi-label">Attrition Rate</div>
+          <div class="kpi-value red">14.7%</div>
+          <div class="kpi-sub">2,179 employees left</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">💵</div>
+          <div class="kpi-label">Avg Annual Salary</div>
+          <div class="kpi-value">$86,784</div>
+          <div class="kpi-sub">All departments</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📅</div>
+          <div class="kpi-label">Avg Tenure</div>
+          <div class="kpi-value">6.0 yrs</div>
+          <div class="kpi-sub">Years of service</div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-icon">⚠️</div>
+          <div class="kpi-label">Regret Attrition</div>
+          <div class="kpi-value" style="color:var(--amber)">230</div>
+          <div class="kpi-sub">High performers who left</div>
+        </div>
+      </div>
+
+      <div class="charts-row col12">
+        <div class="chart-card">
+          <div class="chart-title">Attrition Rate by Department</div>
+          <div class="chart-sub">% of employees who left — sorted highest to lowest</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="deptAttrChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Overall Attrition Split</div>
+          <div class="chart-sub">Active vs departed employees</div>
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#0d9488"></div> Stayed (12,644 — 85.3%)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Left (2,179 — 14.7%)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-row col2">
+        <div class="chart-card">
+          <div class="chart-title">New Hires per Year (2014–2025)</div>
+          <div class="chart-sub">Hiring volume trend over time</div>
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="hireTrendChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Employee Exits per Year</div>
+          <div class="chart-sub">Cumulative exits since 2014</div>
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="exitTrendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        🔍 <strong>Key finding:</strong> A chi-square test of department vs attrition returned p = 0.35 — the spread across departments (13.4% Surgery to 16.4% Lab Services) is <strong>not statistically significant</strong>. Cross-department factors like tenure, overtime, and satisfaction are the real drivers. Early leavers (within 2 years) account for <strong>21.4% of all exits</strong>.
+      </div>
+    </div>
+
+    <!-- ══════════════ PAGE 2: COMPENSATION ══════════════ -->
+    <div class="page" id="page1">
+      <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Annual Salary</div>
+          <div class="kpi-value teal">$86,784</div>
+          <div class="kpi-sub">All employees</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Highest Dept Avg</div>
+          <div class="kpi-value">$106,846</div>
+          <div class="kpi-sub">Surgery</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Lowest Dept Avg</div>
+          <div class="kpi-value">$77,014</div>
+          <div class="kpi-sub">Pharmacy</div>
+        </div>
+        <div class="kpi-card danger">
+          <div class="kpi-label">Salary vs Attrition</div>
+          <div class="kpi-value red">p=0.24</div>
+          <div class="kpi-sub">NOT significant driver</div>
+        </div>
+      </div>
+
+      <div class="charts-row col2">
+        <div class="chart-card">
+          <div class="chart-title">Average Annual Salary by Department</div>
+          <div class="chart-sub">Surgery and Radiology pay highest</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="deptSalaryChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Attrition Rate by Salary Band</div>
+          <div class="chart-sub">Higher salary does NOT mean lower attrition here</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="salaryAttrChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Education Level Distribution</div>
+        <div class="chart-sub">Breakdown across all employees</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="eduChart"></canvas>
+        </div>
+      </div>
+
+      <div class="insight">
+        💡 <strong>Salary finding:</strong> A Welch t-test comparing salaries of employees who stayed vs those who left returned p = 0.244 — salary differences are <strong>not statistically significant</strong>. This suggests compensation alone isn't the lever to pull for retention when tenure and satisfaction are this dominant.
+      </div>
+    </div>
+
+    <!-- ══════════════ PAGE 3: ATTRITION DRIVERS ══════════════ -->
+    <div class="page" id="page2">
+      <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card danger">
+          <div class="kpi-label">OT Attrition Rate</div>
+          <div class="kpi-value red">20.6%</div>
+          <div class="kpi-sub">Working overtime</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Non-OT Attrition</div>
+          <div class="kpi-value teal">12.1%</div>
+          <div class="kpi-sub">No overtime</div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-label">Early Leavers</div>
+          <div class="kpi-value" style="color:var(--amber)">21.4%</div>
+          <div class="kpi-sub">Left within 2 years</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Satisfaction</div>
+          <div class="kpi-value">2.82/5</div>
+          <div class="kpi-sub">Job satisfaction score</div>
+        </div>
+      </div>
+
+      <div class="charts-row col2">
+        <div class="chart-card">
+          <div class="chart-title">Satisfaction × Work-Life Balance Heatmap</div>
+          <div class="chart-sub">Attrition rate % — darker red = higher attrition</div>
+          <div id="heatmapContainer"></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:8px">
+            <span>← Work-Life Balance →</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="background:#fef2f2;width:12px;height:12px;border-radius:2px;display:inline-block"></span><span>Low</span>
+              <span style="background:#ef4444;width:12px;height:12px;border-radius:2px;display:inline-block"></span><span>High</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Overtime Impact on Attrition</div>
+          <div class="chart-sub">Overtime nearly doubles attrition risk</div>
+          <div class="overtime-bars" style="margin-top:24px">
+            <div class="ot-row">
+              <div class="ot-label-row"><span class="ot-label" style="color:var(--red)">⚠ Working Overtime</span><span class="ot-pct" style="color:var(--red)">20.6%</span></div>
+              <div class="ot-bar-bg"><div class="ot-bar-fill" style="width:82.4%;background:var(--red)"></div></div>
+            </div>
+            <div class="ot-row">
+              <div class="ot-label-row"><span class="ot-label" style="color:var(--teal)">✓ No Overtime</span><span class="ot-pct" style="color:var(--teal)">12.1%</span></div>
+              <div class="ot-bar-bg"><div class="ot-bar-fill" style="width:48.4%;background:var(--teal)"></div></div>
+            </div>
+          </div>
+          <div style="margin-top:24px">
+            <div class="chart-title">Attrition by Age Group</div>
+            <div class="chart-sub" style="margin-bottom:10px">50-59 group shows highest attrition</div>
+            <div class="chart-wrap" style="height:150px">
+              <canvas id="ageAttrChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Top Feature Importances — Random Forest Model (ROC-AUC: 0.80)</div>
+        <div class="chart-sub">Tenure dominates — 7× more important than the next feature</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="featureChart"></canvas>
+        </div>
+      </div>
+
+      <div class="insight">
+        🎯 <strong>Key driver:</strong> Tenure has by far the strongest link to attrition (importance score 0.57, correlation -0.33). <strong>21.4% of all leavers exit within their first 2 years</strong> — pointing to an onboarding/early-engagement issue more than long-term burnout. Overtime status nearly doubles attrition risk (20.6% vs 12.1%).
+      </div>
+    </div>
+
+    <!-- ══════════════ PAGE 4: WORKFORCE ══════════════ -->
+    <div class="page" id="page3">
+      <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Departments</div>
+          <div class="kpi-value teal">12</div>
+          <div class="kpi-sub">Across the organization</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">States Covered</div>
+          <div class="kpi-value">5</div>
+          <div class="kpi-sub">NY, NJ, CT, PA, MA</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Female Employees</div>
+          <div class="kpi-value">55.4%</div>
+          <div class="kpi-sub">8,212 of 14,823</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Overtime Workers</div>
+          <div class="kpi-value">31%</div>
+          <div class="kpi-sub">Approx. 4,595 employees</div>
+        </div>
+      </div>
+
+      <div class="charts-row col2">
+        <div class="chart-card">
+          <div class="chart-title">Headcount by Department</div>
+          <div class="chart-sub">Even distribution across all 12 departments (~1,150–1,265)</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="headcountChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Gender Distribution</div>
+          <div class="chart-sub">Workforce gender breakdown</div>
+          <div class="chart-wrap" style="height:200px">
+            <canvas id="genderChart"></canvas>
+          </div>
+          <div class="donut-legend" style="margin-top:12px">
+            <div class="legend-item"><div class="legend-dot" style="background:#0d9488"></div> Female — 55.4% (8,212)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#1a3260"></div> Male — 41.6% (6,163)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Non-Binary — 3.0% (448)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Avg Job Satisfaction by Department (out of 5)</div>
+        <div class="chart-sub">Relatively uniform across departments — individual factors matter more</div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="deptSatChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end dashboard-area -->
+
+  <!-- ══════════════ STEPS PANEL ══════════════ -->
+  <div class="steps-panel" id="stepsPanel">
+    <div class="steps-header">
+      <h3>🛠 Power BI Build Steps</h3>
+      <p>Follow these while building in Power BI Desktop</p>
+    </div>
+
+    <!-- Steps content changes per tab -->
+    <div id="stepsContent">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+
+</div><!-- end content -->
+
+<script>
+// ── DATA ──
+const D = {
+  deptAttr: {labels:["Lab Services","IT","Administration","Radiology","Emergency","Facilities","Patient Support","Human Resources","Pharmacy","Nursing","Finance","Surgery"],values:[16.4,16.2,15.7,15.4,14.7,14.6,14.5,14.5,14.1,13.8,13.5,13.4]},
+  deptSalary: {labels:["Surgery","Radiology","Patient Support","Nursing","Emergency","Administration","Facilities","Lab Services","Finance","IT","Human Resources","Pharmacy"],values:[106846,99916,93363,84838,89786,84214,83883,82855,80828,79571,77710,77014]},
+  deptSat: {labels:["Administration","Emergency","Facilities","Finance","Human Resources","IT","Lab Services","Nursing","Patient Support","Pharmacy","Radiology","Surgery"],values:[2.83,2.85,2.80,2.80,2.83,2.87,2.80,2.82,2.82,2.79,2.81,2.82]},
+  headcount: {labels:["Administration","Emergency","Facilities","Finance","Human Resources","IT","Lab Services","Nursing","Patient Support","Pharmacy","Radiology","Surgery"],values:[1178,1257,1216,1150,1263,1262,1244,1257,1265,1238,1257,1236]},
+  gender: {labels:["Female","Male","Non-Binary"],values:[8212,6163,448]},
+  education: {labels:["Bachelor's Degree","Master's Degree","Associate Degree","High School","Doctorate"],values:[5680,3544,2875,1768,956]},
+  ageAttr: {labels:["20-29","30-39","40-49","50-59","60+"],values:[15.1,14.4,14.5,15.7,14.4]},
+  hireTrend: {labels:["2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"],values:[1262,1232,1201,1271,1230,1173,1290,1185,1251,1291,1213,1224]},
+  exitTrend: {labels:["2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"],values:[24,28,51,72,92,126,159,228,262,365,771]},
+  salaryAttr: {labels:["<50K","50-70K","70-90K","90-120K","120K+"],values:[17.0,15.0,14.3,15.5,13.9]},
+  features: {labels:["TenureYears","JobSatisfaction","WorkLifeBalance","OverTime","AnnualSalary","DistanceKM","Training","Age","JobRole","PerfRating"],values:[0.57,0.079,0.062,0.058,0.038,0.036,0.034,0.033,0.029,0.027]},
+  heatmap: {"1_1":29.3,"1_2":20.9,"1_3":18.8,"1_4":14.0,"1_5":16.2,"2_1":26.1,"2_2":26.7,"2_3":17.1,"2_4":18.0,"2_5":18.4,"3_1":14.6,"3_2":14.6,"3_3":7.7,"3_4":6.9,"3_5":9.7,"4_1":16.7,"4_2":15.8,"4_3":6.6,"4_4":6.5,"4_5":4.9,"5_1":9.3,"5_2":16.5,"5_3":8.9,"5_4":7.9,"5_5":5.3}
+};
+
+// ── CHART DEFAULTS ──
+Chart.defaults.font.family = 'Inter';
+Chart.defaults.color = '#64748b';
+
+function teal(a=1){ return `rgba(13,148,136,${a})`; }
+function navy(a=1){ return `rgba(26,50,96,${a})`; }
+function red(a=1){ return `rgba(239,68,68,${a})`; }
+function amber(a=1){ return `rgba(245,158,11,${a})`; }
+
+// ── INIT CHARTS ──
+function initCharts() {
+  // Dept attrition
+  new Chart(document.getElementById('deptAttrChart'), {
+    type: 'bar', data: { labels: D.deptAttr.labels, datasets:[{ data: D.deptAttr.values, backgroundColor: D.deptAttr.values.map(v => v >= 15.5 ? red(0.8) : teal(0.75)), borderRadius: 5 }]},
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}% attrition rate`}}}, scales:{ x:{min:10,max:20,ticks:{callback:v=>v+'%'},grid:{color:'#f1f5f9'}}, y:{grid:{display:false},ticks:{font:{size:11}}} }}
+  });
+
+  // Donut
+  new Chart(document.getElementById('donutChart'), {
+    type:'doughnut', data:{labels:["Stayed","Left"],datasets:[{data:[12644,2179],backgroundColor:[teal(0.85),red(0.8)],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw.toLocaleString()} (${(c.raw/14823*100).toFixed(1)}%)`}}}}
+  });
+
+  // Hire trend
+  new Chart(document.getElementById('hireTrendChart'), {
+    type:'line', data:{labels:D.hireTrend.labels,datasets:[{data:D.hireTrend.values,borderColor:teal(),backgroundColor:teal(0.08),fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:teal()}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Exit trend
+  new Chart(document.getElementById('exitTrendChart'), {
+    type:'bar', data:{labels:D.exitTrend.labels,datasets:[{data:D.exitTrend.values,backgroundColor:D.exitTrend.values.map((_,i)=>i>=9?red(0.8):red(0.4)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} exits`}}},scales:{y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Dept salary
+  const dsByLabel = Object.fromEntries(D.deptSalary.labels.map((l,i)=>[l,D.deptSalary.values[i]]));
+  const sortedLabels = [...D.deptSalary.labels].sort((a,b)=>dsByLabel[b]-dsByLabel[a]);
+  new Chart(document.getElementById('deptSalaryChart'), {
+    type:'bar', data:{labels:sortedLabels,datasets:[{data:sortedLabels.map(l=>dsByLabel[l]),backgroundColor:teal(0.75),borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`$${c.raw.toLocaleString()}`}}},scales:{x:{ticks:{callback:v=>'$'+v/1000+'K'},grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Salary attrition
+  new Chart(document.getElementById('salaryAttrChart'), {
+    type:'bar', data:{labels:D.salaryAttr.labels,datasets:[{data:D.salaryAttr.values,backgroundColor:D.salaryAttr.values.map(v=>v>15.5?red(0.75):amber(0.7)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}% attrition`}}},scales:{y:{min:10,max:20,ticks:{callback:v=>v+'%'},grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Education
+  new Chart(document.getElementById('eduChart'), {
+    type:'bar', data:{labels:D.education.labels,datasets:[{data:D.education.values,backgroundColor:[teal(0.8),navy(0.8),amber(0.7),red(0.5),teal(0.4)],borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Age attrition
+  new Chart(document.getElementById('ageAttrChart'), {
+    type:'bar', data:{labels:D.ageAttr.labels,datasets:[{data:D.ageAttr.values,backgroundColor:D.ageAttr.values.map(v=>v>=15.5?red(0.75):teal(0.7)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw}%`}}},scales:{y:{min:12,max:18,ticks:{callback:v=>v+'%'},grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Feature importance
+  new Chart(document.getElementById('featureChart'), {
+    type:'bar', data:{labels:D.features.labels,datasets:[{data:D.features.values,backgroundColor:D.features.values.map((_,i)=>i===0?red(0.8):i<4?amber(0.7):teal(0.6)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Importance: ${c.raw}`}}},scales:{y:{grid:{color:'#f1f5f9'},ticks:{font:{size:9}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Headcount
+  new Chart(document.getElementById('headcountChart'), {
+    type:'bar', data:{labels:D.headcount.labels,datasets:[{data:D.headcount.values,backgroundColor:navy(0.75),borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // Gender
+  new Chart(document.getElementById('genderChart'), {
+    type:'doughnut', data:{labels:D.gender.labels,datasets:[{data:D.gender.values,backgroundColor:[teal(0.85),navy(0.8),amber(0.75)],borderWidth:0,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false}}}
+  });
+
+  // Dept satisfaction
+  new Chart(document.getElementById('deptSatChart'), {
+    type:'bar', data:{labels:D.deptSat.labels,datasets:[{data:D.deptSat.values,backgroundColor:teal(0.7),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Avg satisfaction: ${c.raw}/5`}}},scales:{y:{min:2.5,max:3.2,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:9}}}}}
+  });
+
+  buildHeatmap();
+}
+
+// ── HEATMAP ──
+function buildHeatmap() {
+  const container = document.getElementById('heatmapContainer');
+  let html = '<div style="display:grid;grid-template-columns:20px repeat(5,1fr);gap:3px;margin-top:12px">';
+  // Row labels + cells (satisfaction 5→1 top to bottom)
+  for (let sat = 5; sat >= 1; sat--) {
+    html += `<div style="display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#94a3b8">${sat}</div>`;
+    for (let wlb = 1; wlb <= 5; wlb++) {
+      const val = D.heatmap[`${sat}_${wlb}`];
+      const intensity = (val - 4) / 26;
+      const r = Math.round(239 * intensity + 254 * (1-intensity));
+      const g = Math.round(68 * intensity + 242 * (1-intensity));
+      const b = Math.round(68 * intensity + 242 * (1-intensity));
+      const textColor = intensity > 0.45 ? 'white' : '#374151';
+      html += `<div title="Sat:${sat}, WLB:${wlb} → ${val}% attrition" style="border-radius:5px;background:rgb(${r},${g},${b});display:flex;align-items:center;justify-content:center;height:40px;font-size:10px;font-weight:700;color:${textColor};cursor:default;transition:transform 0.15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${val}%</div>`;
+    }
+  }
+  // Column labels
+  html += '<div></div>';
+  for (let wlb = 1; wlb <= 5; wlb++) {
+    html += `<div style="display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#94a3b8">${wlb}</div>`;
+  }
+  html += '</div>';
+  html += '<div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:#94a3b8"><span>Y-axis: Job Satisfaction (1-5)</span><span>X-axis: Work-Life Balance (1-5)</span></div>';
+  container.innerHTML = html;
+}
+
+// ── STEPS CONTENT ──
+const stepsData = [
+  // Page 0 - Executive Overview
+  `<div class="step-group">
+    <div class="step-group-title">Step 1 — Load Data</div>
+    <div class="step-item"><div class="step-num">1</div><div class="step-text">Open <b>Power BI Desktop</b> → on the Home ribbon click <b>Get Data → Text/CSV</b></div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text">Browse to your project folder → select <b>hr_dashboard_data.csv</b> → a preview window opens → click <b>Load</b> (not Transform, for this first pass)</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text">Click <b>Get Data → Text/CSV</b> again → select <b>attrition_risk_scores.csv</b> → <b>Load</b></div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text">Confirm both tables appear in the <b>Fields</b> pane on the right edge of the screen (hr_dashboard_data and attrition_risk_scores)</div></div>
+    <div class="step-tip">⚠ If a column-delimiter or encoding warning pops up, click "Edit" instead of "Load" so you can set Delimiter = Comma and Encoding = UTF-8 before loading</div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 2 — Fix Data Types in Power Query</div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-text">Home ribbon → <b>Transform Data</b> → this opens the Power Query Editor in a new window</div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-text">Click the small type-icon in the column header of <b>HireDate</b> and <b>TerminationDate</b> → choose <b>Date</b> (if it shows "Using locale", pick your locale first)</div></div>
+    <div class="step-item"><div class="step-num">7</div><div class="step-text">Click the type-icon on <b>AnnualSalary, MonthlySalary, TenureYears</b> → choose <b>Decimal Number</b></div></div>
+    <div class="step-item"><div class="step-num">8</div><div class="step-text">Click the type-icon on <b>Age, IsAttrited, HireYear</b> → choose <b>Whole Number</b></div></div>
+    <div class="step-item"><div class="step-num">9</div><div class="step-text">Right-click any column header with unwanted spaces → <b>Transform → Trim</b> and <b>Transform → Clean</b> if text looks messy</div></div>
+    <div class="step-item"><div class="step-num">10</div><div class="step-text">Check the <b>Applied Steps</b> pane on the right — each type change should be listed; delete any step that errored (red text) and redo it</div></div>
+    <div class="step-item"><div class="step-num">11</div><div class="step-text">Home ribbon (inside Power Query) → click <b>Close & Apply</b> → wait for both queries to finish refreshing</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 3 — Create a Measures Table</div>
+    <div class="step-item"><div class="step-num">12</div><div class="step-text">Back in the main Report view → Home ribbon → <b>Enter Data</b></div></div>
+    <div class="step-item"><div class="step-num">13</div><div class="step-text">In the dialog, leave the single blank column, rename the table (bottom-left field) to <b>_Measures</b> → click <b>Load</b> (this is just an empty container table to keep DAX measures organized, separate from your data tables)</div></div>
+    <div class="step-item"><div class="step-num">14</div><div class="step-text">In the Fields pane, right-click <b>_Measures</b> → <b>New Measure</b> — repeat this for every DAX formula below, pasting each one into the formula bar and pressing Enter</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 4 — Core DAX Measures</div>
+    <div class="step-item"><div class="step-num">15</div><div class="step-text"><b>Total Employees</b></div></div>
+    <div class="step-code">Total Employees = 
+COUNTROWS(hr_dashboard_data)</div>
+    <div class="step-item"><div class="step-num">16</div><div class="step-text"><b>Total Attrition</b></div></div>
+    <div class="step-code">Total Attrition = 
+CALCULATE(
+  COUNTROWS(hr_dashboard_data),
+  hr_dashboard_data[Attrition] = "Yes"
+)</div>
+    <div class="step-item"><div class="step-num">17</div><div class="step-text"><b>Attrition Rate</b> — after creating it, select the measure in the Fields pane → Measure Tools ribbon → Format dropdown → choose <b>Percentage</b> → set 1 decimal place</div></div>
+    <div class="step-code">Attrition Rate = 
+DIVIDE([Total Attrition],[Total Employees],0)</div>
+    <div class="step-item"><div class="step-num">18</div><div class="step-text"><b>Regret Attrition</b> (high performers who left)</div></div>
+    <div class="step-code">Regret Attrition = 
+CALCULATE([Total Employees],
+  hr_dashboard_data[Attrition] = "Yes",
+  hr_dashboard_data[PerformanceRating] >= 4
+)</div>
+    <div class="step-item"><div class="step-num">19</div><div class="step-text"><b>Avg Tenure</b></div></div>
+    <div class="step-code">Avg Tenure Years = 
+ROUND(AVERAGE(
+  hr_dashboard_data[TenureYears]),1)</div>
+    <div class="step-tip">💡 After each measure, drag it into the canvas once as a quick sanity-check card before building the real layout — catches typos early</div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 5 — Build the KPI Cards</div>
+    <div class="step-item"><div class="step-num">20</div><div class="step-text">Visualizations pane → click the <b>Card</b> icon (or "New Card" in newer versions) 5 times, dragging each onto the top strip of the canvas, resized to roughly equal width</div></div>
+    <div class="step-item"><div class="step-num">21</div><div class="step-text">Click card 1 → in the Fields pane drag <b>Total Employees</b> into the <b>Fields</b> well of the Visualizations pane</div></div>
+    <div class="step-item"><div class="step-num">22</div><div class="step-text">Repeat for cards 2–5 with <b>Total Attrition</b>, <b>Attrition Rate</b>, <b>Regret Attrition</b>, <b>Avg Tenure Years</b></div></div>
+    <div class="step-item"><div class="step-num">23</div><div class="step-text">With each card selected, go to the Format pane (paint-roller icon) → <b>Callout Value</b> → increase font size to ~28pt, bold; turn on <b>Category Label</b> and rename it in-place if needed</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 6 — Build the Charts</div>
+    <div class="step-item"><div class="step-num">24</div><div class="step-text">Click empty canvas → Visualizations pane → select <b>Clustered Bar Chart</b> icon (horizontal bars)</div></div>
+    <div class="step-item"><div class="step-num">25</div><div class="step-text">Drag <b>Department</b> into the <b>Y-axis</b> well and <b>Attrition Rate</b> into the <b>X-axis</b> well</div></div>
+    <div class="step-item"><div class="step-num">26</div><div class="step-text">Click the <b>⋯</b> (more options) on the visual → <b>Sort by → Attrition Rate</b> → click again to toggle <b>Sort descending</b></div></div>
+    <div class="step-item"><div class="step-num">27</div><div class="step-text">Click empty canvas → select <b>Donut Chart</b> icon → drag <b>Attrition</b> into <b>Legend</b> well and <b>Total Employees</b> into <b>Values</b> well</div></div>
+    <div class="step-item"><div class="step-num">28</div><div class="step-text">Click empty canvas → select <b>Line Chart</b> icon → drag <b>HireDate</b> into the <b>X-axis</b> well (click the dropdown arrow next to it in the well and choose <b>Date Hierarchy → Month</b> or set to continuous Month/Year), drag <b>Total Employees</b> into the <b>Y-axis</b> well</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 7 — Add Slicers & Finish the Page</div>
+    <div class="step-item"><div class="step-num">29</div><div class="step-text">Click empty canvas in the top-right corner → select <b>Slicer</b> icon → drag <b>Department</b> into the <b>Field</b> well</div></div>
+    <div class="step-item"><div class="step-num">30</div><div class="step-text">In the Format pane for the slicer → <b>Slicer settings → Options → Style → Dropdown</b> (saves space) → repeat for two more slicers with <b>Gender</b> and <b>State</b>, lining them up horizontally</div></div>
+    <div class="step-item"><div class="step-num">31</div><div class="step-text">Resize and align all visuals using the alignment guides (hold Shift and click multiple visuals → right-click → Align → Align Top, etc.)</div></div>
+    <div class="step-tip">💡 Rename the page tab: double-click "Page 1" at the bottom of the screen → type "Executive Overview"</div>
+  </div>`,
+
+  // Page 1 - Compensation
+  `<div class="step-group">
+    <div class="step-group-title">Step 1 — Extra DAX for Compensation</div>
+    <div class="step-item"><div class="step-num">1</div><div class="step-text">Right-click <b>_Measures</b> in the Fields pane → <b>New Measure</b> → <b>Avg Annual Salary</b></div></div>
+    <div class="step-code">Avg Annual Salary = 
+AVERAGE(hr_dashboard_data[AnnualSalary])</div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text">Repeat → <b>Avg Monthly Salary</b></div></div>
+    <div class="step-code">Avg Monthly Salary = 
+AVERAGE(hr_dashboard_data[MonthlySalary])</div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text">Select each new measure in the Fields pane → Measure Tools ribbon → Format dropdown → set to <b>Currency</b>, 0 decimal places</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 2 — Add New Page</div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text">Click the <b>+</b> tab at the bottom of the screen to add a new blank page</div></div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-text">Double-click the new page tab → rename to <b>Compensation</b></div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-text">Optional: right-click the Executive Overview page tab → <b>Copy Page → Paste</b> here first, so the slicers and title box carry over, then delete/replace only the charts</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 3 — Build Visuals</div>
+    <div class="step-item"><div class="step-num">7</div><div class="step-text">Visualizations pane → click the <b>Card</b> icon 4 times, dragging each new card onto the top strip of the canvas</div></div>
+    <div class="step-item"><div class="step-num">7a</div><div class="step-text">Click card 1 → from the Fields pane drag <b>Avg Annual Salary</b> into the <b>Fields</b> well of the Visualizations pane</div></div>
+    <div class="step-item"><div class="step-num">7b</div><div class="step-text">Click card 2 → drag <b>Avg Monthly Salary</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">7c</div><div class="step-text">Click card 3 → drag <b>Total Employees</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">7d</div><div class="step-text">Click card 4 → drag <b>Attrition Rate</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">8</div><div class="step-text">Add a <b>Clustered Bar Chart</b> → drag <b>Department</b> into <b>Y-axis</b>, <b>Avg Annual Salary</b> into <b>X-axis</b> → use the <b>⋯</b> menu → Sort by Avg Annual Salary → Sort descending</div></div>
+    <div class="step-item"><div class="step-num">9</div><div class="step-text">Add a second <b>Clustered Bar Chart</b> → drag <b>SalaryBand</b> into <b>X-axis</b>, <b>Attrition Rate</b> into <b>Y-axis</b> — this shows salary band doesn't meaningfully reduce attrition</div></div>
+    <div class="step-item"><div class="step-num">10</div><div class="step-text">Add a <b>Stacked Bar Chart</b> → drag <b>Education</b> into <b>X-axis</b>, <b>Total Employees</b> into <b>Y-axis</b>, <b>Gender</b> into <b>Legend</b></div></div>
+    <div class="step-item"><div class="step-num">11</div><div class="step-text">Format each chart's Data Labels: select the visual → Format pane → toggle <b>Data labels → On</b> so exact numbers show on the bars</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 4 — Fix SalaryBand Ordering</div>
+    <div class="step-item"><div class="step-num">12</div><div class="step-text">Go to <b>Table view</b> (left sidebar icon that looks like a grid) → select hr_dashboard_data table → Home ribbon → <b>New Column</b></div></div>
+    <div class="step-code">SalaryBandOrder = 
+SWITCH(hr_dashboard_data[SalaryBand],
+  "Low", 1, "Medium", 2, "High", 3, 4)</div>
+    <div class="step-item"><div class="step-num">13</div><div class="step-text">Click the <b>SalaryBand</b> column → Column Tools ribbon → <b>Sort by Column</b> dropdown → choose <b>SalaryBandOrder</b></div></div>
+    <div class="step-tip">💡 Now every chart using SalaryBand on an axis will automatically order Low → Medium → High</div>
+  </div>`,
+
+  // Page 2 - Attrition Drivers
+  `<div class="step-group">
+    <div class="step-group-title">Step 1 — Extra DAX for Drivers</div>
+    <div class="step-item"><div class="step-num">1</div><div class="step-text">New Measure → <b>Pct Working Overtime</b> → format as Percentage</div></div>
+    <div class="step-code">Pct Working Overtime = 
+DIVIDE(
+  CALCULATE([Total Employees],
+    hr_dashboard_data[OverTime]="Yes"),
+  [Total Employees],0)</div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text">New Measure → <b>Early Leavers</b> (left within 2 years)</div></div>
+    <div class="step-code">Early Leavers = 
+CALCULATE([Total Employees],
+  hr_dashboard_data[Attrition]="Yes",
+  hr_dashboard_data[TenureYears] < 2)</div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text">New Measure → <b>Avg Job Satisfaction</b></div></div>
+    <div class="step-code">Avg Job Satisfaction = 
+ROUND(AVERAGE(
+  hr_dashboard_data[JobSatisfaction]),2)</div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 2 — Link the Two Tables</div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text">Click the <b>Model view</b> icon on the left sidebar (three connected boxes)</div></div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-text">Click and drag from <b>EmployeeID</b> in hr_dashboard_data to <b>EmployeeID</b> in attrition_risk_scores to draw the relationship line</div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-text">Double-click the relationship line → confirm Cardinality is <b>One to one</b> (or One to many if risk scores has duplicates) and Cross filter direction is <b>Single</b> → OK</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 3 — Build the Heatmap (Matrix Visual)</div>
+    <div class="step-item"><div class="step-num">7</div><div class="step-text">Back in Report view, click <b>+</b> to add a page → rename <b>Attrition Drivers</b></div></div>
+    <div class="step-item"><div class="step-num">8</div><div class="step-text">Visualizations pane → click the <b>Matrix</b> icon</div></div>
+    <div class="step-item"><div class="step-num">9</div><div class="step-text">Drag <b>JobSatisfaction</b> into the <b>Rows</b> well, <b>WorkLifeBalance</b> into the <b>Columns</b> well, <b>Attrition Rate</b> into the <b>Values</b> well</div></div>
+    <div class="step-item"><div class="step-num">10</div><div class="step-text">With the matrix selected, open the Format pane → find <b>Cell elements</b> → toggle it <b>On</b> → make sure it's applied to the "Attrition Rate" value → this auto-colors cells from low (light) to high (dark/red)</div></div>
+    <div class="step-item"><div class="step-num">11</div><div class="step-text">Still in Cell elements, adjust the <b>Diverging</b> color stops if you want: set Minimum to teal/green and Maximum to red for clearer contrast</div></div>
+    <div class="step-tip">💡 This is the most visually impressive visual in the whole dashboard — exactly what you see on this page!</div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 4 — Other Attrition Visuals</div>
+    <div class="step-item"><div class="step-num">12</div><div class="step-text">Add a <b>Clustered Bar Chart</b> → <b>OverTime</b> into X-axis, <b>Attrition Rate</b> into Y-axis (will show 2 bars — Yes/No)</div></div>
+    <div class="step-item"><div class="step-num">13</div><div class="step-text">Add a <b>Clustered Bar Chart</b> → <b>AgeGroup</b> into X-axis, <b>Attrition Rate</b> into Y-axis</div></div>
+    <div class="step-item"><div class="step-num">14</div><div class="step-text">Add a <b>Table</b> visual → from the <b>attrition_risk_scores</b> table drag <b>EmployeeID</b> and <b>PredictedRiskScore</b> into the <b>Columns</b> well</div></div>
+    <div class="step-item"><div class="step-num">15</div><div class="step-text">Click the column header <b>PredictedRiskScore</b> in the table visual itself → it toggles sort → click again if needed to get descending order (highest risk on top)</div></div>
+    <div class="step-item"><div class="step-num">16</div><div class="step-text">Optional: apply conditional formatting → select <b>PredictedRiskScore</b> in Fields pane → Column Tools → <b>Conditional Formatting → Background color</b> → color scale red for high risk</div></div>
+  </div>`,
+
+  // Page 3 - Workforce
+  `<div class="step-group">
+    <div class="step-group-title">Step 1 — Add Page</div>
+    <div class="step-item"><div class="step-num">1</div><div class="step-text">Click <b>+</b> at the bottom to add a new page → double-click the tab → rename <b>Workforce Overview</b></div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 2 — Visuals to Build</div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text">Visualizations pane → click the <b>Card</b> icon 4 times, dragging each new card onto the top strip of the canvas</div></div>
+    <div class="step-item"><div class="step-num">2a</div><div class="step-text">Click card 1 → drag <b>Total Employees</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">2b</div><div class="step-text">Click card 2 → drag <b>Avg Annual Salary</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">2c</div><div class="step-text">Click card 3 → drag <b>Avg Tenure Years</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">2d</div><div class="step-text">Click card 4 → drag <b>Avg Job Satisfaction</b> into its <b>Fields</b> well</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text">Add a <b>Clustered Bar Chart</b> (horizontal) → <b>Department</b> into Y-axis, <b>Total Employees</b> into X-axis — this is your headcount-by-department view</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text">Add a <b>Donut Chart</b> → <b>Gender</b> into Legend, <b>Total Employees</b> into Values</div></div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-text">Add a <b>Clustered Bar Chart</b> → <b>Education</b> into X-axis, <b>Total Employees</b> into Y-axis</div></div>
+    <div class="step-item"><div class="step-num">6</div><div class="step-text">Add a <b>Line Chart</b> → <b>HireYear</b> into X-axis, <b>Total Employees</b> into Y-axis (shows the hiring trend over time)</div></div>
+    <div class="step-item"><div class="step-num">7</div><div class="step-text">Select each chart individually and drag corner handles so all 4 pages have visuals aligned to the same grid — use <b>View → Gridlines</b> and <b>Snap to grid</b> (View ribbon) to help</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 3 — Final Formatting (apply to all 4 pages)</div>
+    <div class="step-item"><div class="step-num">8</div><div class="step-text">View ribbon → <b>Themes</b> dropdown → choose <b>Executive</b> or <b>Innovate</b> (avoid the default blue theme) — this applies to every page at once</div></div>
+    <div class="step-item"><div class="step-num">9</div><div class="step-text">On each page, Insert ribbon → <b>Text box</b> → drag across the very top → type "Northbridge Health Group — [Page Name]" → set font ~16pt bold</div></div>
+    <div class="step-item"><div class="step-num">10</div><div class="step-text">Select each chart → Format pane → <b>Gridlines</b> section (under X-axis/Y-axis) → toggle <b>Off</b></div></div>
+    <div class="step-item"><div class="step-num">11</div><div class="step-text">For every visual that splits by Attrition or OverTime, manually set the Yes color to red and the No color to teal: select the visual → Format pane → <b>Data colors</b> → click each swatch and pick the matching hex code, so the palette is identical across all 4 pages</div></div>
+    <div class="step-item"><div class="step-num">12</div><div class="step-text">File → <b>Export → Export to PDF</b> → save as <b>HR_Dashboard.pdf</b> in your reports/ folder</div></div>
+    <div class="step-item"><div class="step-num">13</div><div class="step-text">File → <b>Save As</b> → save the file as <b>HR_Dashboard.pbix</b> in your powerbi/ folder</div></div>
+  </div>
+  <div class="step-group">
+    <div class="step-group-title">Step 4 — Upload to GitHub</div>
+    <div class="step-item"><div class="step-num">14</div><div class="step-text">Copy both <b>HR_Dashboard.pbix</b> and <b>HR_Dashboard.pdf</b> into your repo's <b>powerbi/</b> folder</div></div>
+    <div class="step-item"><div class="step-num">15</div><div class="step-text">From a terminal in the repo folder run: <b>git add powerbi/</b> → <b>git commit -m "Add Power BI dashboard"</b> → <b>git push</b></div></div>
+    <div class="step-item"><div class="step-num">16</div><div class="step-text">Update your <b>README.md</b> to mention the dashboard is included, built in Power BI Desktop, and list the 4 page names</div></div>
+    <div class="step-tip">🎉 You're done! All 4 pages, DAX measures, and exports complete.</div>
+  </div>`
+];
+
+// ── TAB SWITCHING ──
+let currentTab = 0;
+function switchTab(n) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.getElementById('stepsContent').innerHTML = stepsData[n];
+  currentTab = n;
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  initCharts();
+  document.getElementById('stepsContent').innerHTML = stepsData[0];
+});
+</script>
+</body>
+</html>
